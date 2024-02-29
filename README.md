@@ -3,8 +3,8 @@
 A simple but fast implementation of the CD index and some variants for citation network analysis. This implementation trades memory for multiprocessing, using as many cores as the machine it's running on has available (less one, for politeness). 
 
 This implementation can currently calculate the following disruption-like measures: 
-- Citation count (i).
-- [CD index (cd)](https://pubsonline.informs.org/doi/10.1287/mnsc.2015.2366).
+- Citation count (i)
+- [CD index (cd)](https://pubsonline.informs.org/doi/10.1287/mnsc.2015.2366)
 - [CD index without k-term (cdnok)](https://direct.mit.edu/qss/article/1/3/1242/96102/Are-disruption-index-indicators-convergently-valid)
 - [CD index with j-type threshold (cd^j)](https://direct.mit.edu/qss/article/1/3/1242/96102/Are-disruption-index-indicators-convergently-valid)
 - Backwards citations (bcites)
