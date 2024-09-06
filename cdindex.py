@@ -489,7 +489,11 @@ def run(
                             fids = np.array([fids])
 
                         # now get any paper ids which do not make citations
-                        bids = no_bcites.loc[year, cited_var]
+                        bids = (
+                            no_bcites.loc[year, cited_var]
+                            if year in no_bcites.index
+                            else pd.Series([])
+                        )
                         # if only one paper in the year, pandas returns a scalar
                         if isinstance(bids, pd.Series):
                             bids = bids.unique()
