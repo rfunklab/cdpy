@@ -30,6 +30,7 @@ WRITE_EVERY = 2
 REREAD_CITATIONS = False
 SHUFFLE = 0
 
+quiet = False
 citing_dict = defaultdict(set)
 cited_dict = defaultdict(set)
 
@@ -37,11 +38,14 @@ cited_dict = defaultdict(set)
 def timer_func(func):
     # This function shows the execution time of
     # the function object passed
+    global quiet
+
     def wrap_func(*args, **kwargs):
         t1 = time()
         result = func(*args, **kwargs)
         t2 = time()
-        print(f"Function {func.__name__!r} executed in {(t2-t1):.4f}s")
+        if not quiet:
+            print(f"Function {func.__name__!r} executed in {(t2-t1):.4f}s")
         return result
 
     return wrap_func
@@ -354,7 +358,11 @@ def run(
     nworkers=NWORKERS,
     write_every=WRITE_EVERY,
     shuffle=SHUFFLE,
+    suppress_logging=False,
 ):
+
+    global quiet
+    quiet = suppress_logging
 
     print("reading citation file...")
     all_citations, start_year = read_citations_from_file(
@@ -393,6 +401,11 @@ def run(
         for time_horizon in time_horizons:
 
             for threshold in thresholds:
+
+                global citing_dict
+                global cited_dict
+                citing_dict = defaultdict(set)
+                cited_dict = defaultdict(set)
 
                 cd_col = (
                     f"{cd_type}^{threshold}_{time_horizon}"
@@ -450,7 +463,8 @@ def run(
 
                 years_res = {}
                 for year in range(int(start_year_output), int(max_year + 1)):
-                    print(f"Running year: {year} with horizon: {year+dlim}:")
+                    if not quiet:
+                        print(f"Running year: {year} with horizon: {year+dlim}...")
 
                     if year + dlim <= max_year:
                         ylim = year + dlim if year + dlim <= max_year else max_year
@@ -487,7 +501,7 @@ def run(
                         bids = (
                             no_bcites.loc[year, cited_var]
                             if year in no_bcites.index
-                            else pd.Series([])
+                            else pd.Series([], dtype=int)
                         )
                         # if only one paper in the year, pandas returns a scalar
                         if isinstance(bids, pd.Series):
@@ -504,11 +518,13 @@ def run(
                                 initargs=(citing_dict, cited_dict),
                             ) as pool:
                                 for r in tqdm(
-                                    pool.imap_unordered(f, fids), total=len(fids)
+                                    pool.imap_unordered(f, fids),
+                                    total=len(fids),
+                                    disable=quiet,
                                 ):
                                     res.update(r)
                         else:
-                            for fix in tqdm(fids):
+                            for fix in tqdm(fids, disable=quiet):
                                 res.update(f(fix))
                         years_res.update(res)
 
@@ -663,6 +679,11 @@ if __name__ == "__main__":
         default=WRITE_EVERY,
         help="How often to write output to disk",
     )
+    parser.add_argument(
+        "--suppress_logging",
+        action="store_true",
+        help="Whether to suppress logging output",
+    )
 
     args = parser.parse_args()
 
@@ -687,4 +708,5 @@ if __name__ == "__main__":
         nworkers=args.nworkers,
         shuffle=args.shuffle,
         write_every=args.write_every,
+        suppress_logging=args.suppress_logging,
     )
