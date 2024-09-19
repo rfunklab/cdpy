@@ -153,8 +153,6 @@ def thresh_citing_cited(threshold, cited_dict, cited_by_f):
 
 
 def icites(fix):
-    global citing_dict
-    global cited_dict
     cited_by_f = citing_dict[fix]
     citing_f = cited_dict.get(fix, set())
 
@@ -166,8 +164,6 @@ def icites(fix):
 
 
 def jcites(threshold, fix):
-    global citing_dict
-    global cited_dict
     cited_by_f = citing_dict[fix]
     citing_f = cited_dict.get(fix, set())
 
@@ -178,8 +174,6 @@ def jcites(threshold, fix):
 
 
 def kcites(fix):
-    global citing_dict
-    global cited_dict
     cited_by_f = citing_dict[fix]
     citing_f = cited_dict.get(fix, set())
 
@@ -190,8 +184,6 @@ def kcites(fix):
 
 
 def cd(threshold, fix):
-    global citing_dict
-    global cited_dict
     cited_by_f = citing_dict[fix]
     citing_f = cited_dict.get(fix, set())
 
@@ -212,8 +204,6 @@ def cd(threshold, fix):
 
 
 def cdnok(threshold, fix):
-    global citing_dict
-    global cited_dict
     cited_by_f = citing_dict[fix]
     citing_f = cited_dict.get(fix, set())
 
@@ -231,14 +221,12 @@ def cdnok(threshold, fix):
 
 
 def impact(fix):
-    global cited_dict
     citing_f = cited_dict.get(fix, set())
     impact = len(citing_f)
     return {fix: impact}
 
 
 def bcites(fix):
-    global citing_dict
     cited_by_f = citing_dict.get(fix, set())
     bc = len(cited_by_f)
     return {fix: bc}
@@ -336,6 +324,13 @@ def shuffle_citation_network(citation_df, cited_var):
         cited_var
     ].transform(np.random.permutation)
     return citation_df
+
+
+def init(shared_citing_dict, shared_cited_dict):
+    global citing_dict
+    global cited_dict
+    citing_dict = shared_citing_dict
+    cited_dict = shared_cited_dict
 
 
 def run(
@@ -503,7 +498,11 @@ def run(
                         fids = np.union1d(fids, bids)
                         res = {}
                         if nworkers > 1:
-                            with mp.Pool(nworkers) as pool:
+                            with mp.Pool(
+                                nworkers,
+                                initializer=init,
+                                initargs=(citing_dict, cited_dict),
+                            ) as pool:
                                 for r in tqdm(
                                     pool.imap_unordered(f, fids), total=len(fids)
                                 ):
