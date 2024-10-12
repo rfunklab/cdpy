@@ -490,6 +490,15 @@ def run(
                                 )
 
                     if year in citation_years_actual:
+                        if ylim not in citation_years_actual:
+                            pupdate_cited(
+                                citations.loc[
+                                    (citations.index.get_level_values(0) > year)
+                                    & (citations.index.get_level_values(0) <= ylim)
+                                ],
+                                citing_var,
+                                cited_var,
+                            )
                         fids = citations.loc[year, citing_var]
                         # if only one paper in the year, pandas returns a scalar
                         if isinstance(fids, pd.Series):
