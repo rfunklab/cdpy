@@ -465,9 +465,9 @@ def run(
                 for year in range(int(start_year_output), int(max_year + 1)):
                     if not quiet:
                         print(f"Running year: {year} with horizon: {year+dlim}...")
-
+                    
+                    ylim = year + dlim if year + dlim <= max_year else max_year
                     if year + dlim <= max_year:
-                        ylim = year + dlim if year + dlim <= max_year else max_year
                         if ylim in citation_years_actual:
                             clim = citations.loc[ylim]
                             # if only one paper in the year, pandas returns a series
