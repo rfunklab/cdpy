@@ -52,10 +52,11 @@ def timer_func(func):
 
 
 @timer_func
-def read_citation_csv(fileloc, low_memory=False, nrows=None, usecols=None):
+def read_citation_csv(fileloc, low_memory=False, nrows=None, usecols=None, sep=','):
     return pd.read_csv(
         fileloc,
         low_memory=low_memory,
+        sep=sep,
         nrows=nrows,
         na_values="\\N",
         encoding_errors="ignore",
@@ -72,6 +73,8 @@ def read_citation_parquet(fileloc):
 def read_citations(fileloc):
     if ".csv" in fileloc:
         return read_citation_csv(fileloc)
+    elif ".tsv" in fileloc:
+        return read_citation_csv(fileloc, sep="\t")
     elif ".parquet" in fileloc:
         return read_citation_parquet(fileloc)
     else:
