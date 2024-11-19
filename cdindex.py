@@ -160,6 +160,8 @@ def thresh_citing_cited(threshold, cited_dict, cited_by_f):
 
 
 def icites(fix):
+    global citing_dict
+    global cited_dict
     cited_by_f = citing_dict[fix]
     citing_f = cited_dict.get(fix, set())
 
@@ -171,6 +173,8 @@ def icites(fix):
 
 
 def jcites(threshold, fix):
+    global citing_dict
+    global cited_dict
     cited_by_f = citing_dict[fix]
     citing_f = cited_dict.get(fix, set())
 
@@ -181,6 +185,8 @@ def jcites(threshold, fix):
 
 
 def kcites(fix):
+    global citing_dict
+    global cited_dict
     cited_by_f = citing_dict[fix]
     citing_f = cited_dict.get(fix, set())
 
@@ -191,6 +197,8 @@ def kcites(fix):
 
 
 def cd(threshold, fix):
+    global citing_dict
+    global cited_dict
     cited_by_f = citing_dict[fix]
     citing_f = cited_dict.get(fix, set())
 
@@ -211,6 +219,8 @@ def cd(threshold, fix):
 
 
 def cdnok(threshold, fix):
+    global citing_dict
+    global cited_dict
     cited_by_f = citing_dict[fix]
     citing_f = cited_dict.get(fix, set())
 
@@ -228,12 +238,14 @@ def cdnok(threshold, fix):
 
 
 def impact(fix):
+    global cited_dict
     citing_f = cited_dict.get(fix, set())
     impact = len(citing_f)
     return {fix: impact}
 
 
 def bcites(fix):
+    global citing_dict
     cited_by_f = citing_dict.get(fix, set())
     bc = len(cited_by_f)
     return {fix: bc}
