@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 
 TIME_HORIZONS = [5, 10, 20, 30, 300]
-CD_TYPES = ["cd", "i", "cdnok", "bcites", "icites", "jcites", "kcites"]
+CD_TYPES = ["cd", "i", "cdnok", "bcites", "icites", "jcites", "kcites", "cyg"]
 THRESHOLDS = [1]
 START_YEAR = None
 START_YEAR_OUTPUT = None
@@ -23,7 +23,7 @@ DATE_VAR_CITING = "citing_year"
 DATE_VAR_CITED = "cited_year"
 GARBAGE_COLLECT = False
 DATE_TYPE = "year"
-CITATION_LOC = "data/aps_2000-2005.csv"
+CITATION_LOC = "data/aps_2000-2005.csv.gz"
 SAVE_LOC = "data"
 NWORKERS = max(1, mp.cpu_count() - 1)
 WRITE_EVERY = 2
@@ -119,13 +119,17 @@ def set_citing_cited_dict(citations, citing_var, cited_var):
         citations.groupby(cited_var)[citing_var].agg(set).to_dict(into=cited_dict)
     )
 
-
 @timer_func
 def pupdate_citing(citations, citing_var, cited_var):
     global citing_dict
     for k, v in citations.groupby(citing_var)[cited_var].agg(set).to_dict().items():
         citing_dict[k] |= v
 
+@timer_func
+def pupdate_citing_cyg(citations, citing_var):
+    global citing_dict
+    for k, v in citations.groupby(citing_var)["cited_year"].mean().to_dict().items():
+        citing_dict[k] = v
 
 @timer_func
 def gc_citing(fids):
@@ -250,8 +254,20 @@ def bcites(fix):
     bc = len(cited_by_f)
     return {fix: bc}
 
+def cyg(year, fix):
+    global citing_dict
+    global cited_dict
+    citing_f = cited_dict.get(fix, set())  # papers that cite focal paper
 
-def get_function_partial(cd_type, threshold=1):
+    # get average year of backward citation for each paper in citing_f
+    if len(citing_f) > 0:
+        cyg = np.nanmean([citing_dict.get(c, np.nan) for c in citing_f]) - year
+    else:
+        cyg = np.nan
+    return {fix: cyg}
+
+
+def get_function_partial(cd_type, threshold=1, year=None):
     if cd_type == "cd":
         return partial(cd, threshold)
     if cd_type == "cdnok":
@@ -266,6 +282,10 @@ def get_function_partial(cd_type, threshold=1):
         return partial(jcites, threshold)
     if cd_type == "kcites":
         return kcites
+    if cd_type == "cyg":
+        if year is None:
+            raise ValueError("Year must be provided for cyg function")
+        return partial(cyg, year)
     else:
         raise ValueError(f"CD function type {cd_type} not supported.")
 
@@ -419,7 +439,7 @@ def run(
 
                 global citing_dict
                 global cited_dict
-                citing_dict = defaultdict(set)
+                citing_dict = defaultdict(float) if cd_type == "cyg" else defaultdict(set)
                 cited_dict = defaultdict(set)
 
                 cd_col = (
@@ -434,7 +454,6 @@ def run(
                 if not os.path.exists(save_loc):
                     os.makedirs(save_loc)
 
-                f = get_function_partial(cd_type, threshold=threshold)
                 if cd_type == "bcites":
                     pupdate_citing(
                         all_citations[
@@ -448,6 +467,16 @@ def run(
                         all_citations[
                             all_citations["citing_year"] <= start_year_output + dlim
                         ],
+                        citing_var,
+                        cited_var,
+                    )
+                elif cd_type == "cyg":
+                    ac = all_citations[
+                            all_citations["citing_year"] <= start_year_output + dlim
+                        ]
+                    pupdate_citing_cyg(ac, citing_var)
+                    pupdate_cited(
+                        ac,
                         citing_var,
                         cited_var,
                     )
@@ -481,6 +510,7 @@ def run(
                     if not quiet:
                         print(f"Running year: {year} with horizon: {year+dlim}...")
                     
+                    f = get_function_partial(cd_type, threshold=threshold, year=year)
                     ylim = year + dlim if year + dlim <= max_year else max_year
                     if year + dlim <= max_year:
                         if ylim in citation_years_actual:
@@ -493,6 +523,16 @@ def run(
                                 pupdate_citing(clim, citing_var, cited_var)
                             elif cd_type == "i":
                                 pupdate_cited_impact(clim, citing_var, cited_var)
+                            elif cd_type == "cyg":
+                                pupdate_citing_cyg(clim, citing_var)
+                                pupdate_cited(
+                                    citations.loc[
+                                        (citations.index.get_level_values(0) > year)
+                                        & (citations.index.get_level_values(0) <= ylim)
+                                    ],
+                                    citing_var,
+                                    cited_var,
+                                )
                             else:
                                 pupdate_citing(clim, citing_var, cited_var)
                                 pupdate_cited(
@@ -506,14 +546,24 @@ def run(
 
                     if year in citation_years_actual:
                         if ylim not in citation_years_actual:
-                            pupdate_cited(
-                                citations.loc[
-                                    (citations.index.get_level_values(0) > year)
-                                    & (citations.index.get_level_values(0) <= ylim)
-                                ],
-                                citing_var,
-                                cited_var,
-                            )
+                            if cd_type == "i":
+                                pupdate_cited_impact(
+                                    citations.loc[
+                                        (citations.index.get_level_values(0) > year)
+                                        & (citations.index.get_level_values(0) <= ylim)
+                                    ],
+                                    citing_var,
+                                    cited_var,
+                                )
+                            else:
+                                pupdate_cited(
+                                    citations.loc[
+                                        (citations.index.get_level_values(0) > year)
+                                        & (citations.index.get_level_values(0) <= ylim)
+                                    ],
+                                    citing_var,
+                                    cited_var,
+                                )
                         fids = citations.loc[year, citing_var]
                         # if only one paper in the year, pandas returns a scalar
                         if isinstance(fids, pd.Series):
