@@ -29,6 +29,7 @@ NWORKERS = max(1, mp.cpu_count() - 1)
 WRITE_EVERY = 2
 REREAD_CITATIONS = False
 SHUFFLE = 0
+SAMPLE = 0
 
 quiet = False
 citing_dict = defaultdict(set)
@@ -364,6 +365,32 @@ def shuffle_citation_network(citation_df, cited_var):
     ].transform(np.random.permutation)
     return citation_df
 
+def sample_citations(citation_df, n, citing_var):
+    """
+    Optimized sampling of n citing_record_ids per citing_year, retaining all rows for the sampled citing_record_ids.
+    
+    Parameters:
+        df (pd.DataFrame): Input dataframe with columns: 'citing_record_id', 'citing_year', 'cited_record_id', 'cited_year'.
+        n (int): Number of citing_record_ids to sample per citing_year.
+        
+    Returns:
+        pd.DataFrame: Sampled dataframe.
+    """
+    # Identify the unique citing_record_ids for each citing_year
+    unique_ids = citation_df.drop_duplicates(subset=[citing_var, "citing_year"])
+    
+    # Sample citing_record_ids for each year
+    sampled_ids = (
+        unique_ids.groupby("citing_year")
+        .apply(lambda group: group[citing_var].sample(n=min(n, len(group)), random_state=42), include_groups=False)
+        .reset_index(drop=True)
+    )
+
+    # Filter the original dataframe to include only the sampled citing_record_ids
+    sampled_df = citation_df[citation_df[citing_var].isin(sampled_ids)]
+    
+    return sampled_df
+
 
 def init(shared_citing_dict, shared_cited_dict):
     global citing_dict
@@ -393,6 +420,7 @@ def run(
     nworkers=NWORKERS,
     write_every=WRITE_EVERY,
     shuffle=SHUFFLE,
+    sample=SAMPLE,
     suppress_logging=False,
 ):
 
@@ -414,6 +442,9 @@ def run(
     all_citations = all_citations.dropna(subset=[citing_var, cited_var])
     all_citations[citing_var] = all_citations[citing_var].astype(citing_var_type)
     all_citations[cited_var] = all_citations[cited_var].astype(cited_var_type)
+
+    if sample > 0:
+        all_citations = sample_citations(all_citations, sample, citing_var)
 
     if shuffle > 0:
         np.random.seed(shuffle)
@@ -748,6 +779,12 @@ if __name__ == "__main__":
         help="Whether to shuffle citation network before computing. Setting to value greater than 0 will run shuffle and set seed.",
     )
     parser.add_argument(
+        "--sample",
+        type=int,
+        default=SAMPLE,
+        help="Whether to sample citation network before computing. Setting to value greater than 0 will sample.",
+    )
+    parser.add_argument(
         "--write_every",
         type=int,
         default=WRITE_EVERY,
@@ -781,6 +818,7 @@ if __name__ == "__main__":
         date_type=args.date_type,
         nworkers=args.nworkers,
         shuffle=args.shuffle,
+        sample=args.sample,
         write_every=args.write_every,
         suppress_logging=args.suppress_logging,
     )
